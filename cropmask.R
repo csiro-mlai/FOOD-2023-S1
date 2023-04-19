@@ -1,3 +1,4 @@
+
 library(shiny)
 library(leaflet)
 library(rgdal)
@@ -12,20 +13,47 @@ library(mgcv)
 library(parallel)
 library(dplyr)
 
-bbox <- c(37.26, -3.16, 37.42, -2.97)
+bbox <- c(37.01, -3.43, 37.76, -2.82)
 
-url <- stac("https://explorer.digitalearth.africa/stac") %>%
+## Load crop mask
+
+url_cm <- stac("https://explorer.digitalearth.africa/stac") %>%
   stac_search(collections = "crop_mask",
-             bbox = bbox, datetime = "2019-01-01") %>%
+              bbox = bbox, datetime = "2019-01-01") %>%
   get_request() %>% assets_select(asset_names=c('mask')) %>% assets_url() 
 
-https <- "https://deafrica-services.s3.af-south-1.amazonaws.com"
-url <- paste0(https, gsub( "s3://deafrica-services", "", url))
+https_cm <- "https://deafrica-services.s3.af-south-1.amazonaws.com"
+url_cm <- paste0(https, gsub( "s3://deafrica-services", "", url))
 
-temp <- aggregate(raster(url[1]), 100) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
-plot(temp)
-print(values(temp))
+temp_cm <- aggregate(raster(url[1]), 100) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
 
-cropland <- temp > 0.6
-print(values(cropland))
+## Load ndvi
+
+url_ndvi <- stac("https://explorer.digitalearth.africa/stac") %>%
+  stac_search(collections = "ndvi_anomaly",
+              bbox = bbox, datetime = "2019-01-01") %>%
+  get_request() %>% assets_select(asset_names=c('ndvi_mean')) %>% assets_url() 
+
+https_ndvi <- "https://deafrica-services.s3.af-south-1.amazonaws.com"
+url_ndvi <- paste0(https, gsub( "s3://deafrica-services", "", url))
+
+temp_ndvi <- aggregate(raster(url[1]), 100) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+
+# Mask NDVI to crop mask
+
+cropland <- temp_cm >0.2
+cropland[cropland==FALSE] <- NA
 plot(cropland)
+ndvi_masked <- mask(temp_ndvi, cropland)
+plot(temp_ndvi)
+plot(ndvi_masked)
+
+# Remove layers from memory
+
+rm(temp_cm)
+rm(temp_ndvi)
+
+# Garbage collect
+
+gc()
