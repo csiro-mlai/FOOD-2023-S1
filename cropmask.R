@@ -1,4 +1,3 @@
-
 library(shiny)
 library(leaflet)
 library(rgdal)
@@ -23,9 +22,9 @@ url_cm <- stac("https://explorer.digitalearth.africa/stac") %>%
   get_request() %>% assets_select(asset_names=c('mask')) %>% assets_url() 
 
 https_cm <- "https://deafrica-services.s3.af-south-1.amazonaws.com"
-url_cm <- paste0(https, gsub( "s3://deafrica-services", "", url))
+url_cm <- paste0(https_cm, gsub( "s3://deafrica-services", "", url_cm))
 
-temp_cm <- aggregate(raster(url[1]), 100) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
+temp_cm <- aggregate(raster(url_cm[1]), 100) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
 
 ## Load ndvi
 
@@ -35,9 +34,9 @@ url_ndvi <- stac("https://explorer.digitalearth.africa/stac") %>%
   get_request() %>% assets_select(asset_names=c('ndvi_mean')) %>% assets_url() 
 
 https_ndvi <- "https://deafrica-services.s3.af-south-1.amazonaws.com"
-url_ndvi <- paste0(https, gsub( "s3://deafrica-services", "", url))
+url_ndvi <- paste0(https_ndvi, gsub( "s3://deafrica-services", "", url_ndvi))
 
-temp_ndvi <- aggregate(raster(url[1]), 100) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
+temp_ndvi <- aggregate(raster(url_ndvi[1]), 100) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
 
 
 # Mask NDVI to crop mask
