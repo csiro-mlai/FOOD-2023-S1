@@ -112,8 +112,6 @@ server <- function(input, output, session) {
       
       ndvi_masked <- mask(temp_ndvi, cropland)
       names(ndvi_masked) <- names(temp_ndvi)
-      #plot(temp_ndvi)
-      #plot(ndvi_masked)
       
       # Remove layers from memory
       rm(temp_cm)
@@ -149,11 +147,15 @@ server <- function(input, output, session) {
     crop_sp <- parLapply(cl,tif_cm,crop_to_sp)
     crop_sp <- do.call(rbind, crop_sp)
     rm(tif_cm)
+    gc()
+    
     #plot(crop_sp)
     ndvi_masked <- parLapply(cl,tif_ndvi,filter)
+    rm(crop_sp)
+    gc()
     #print(ndvi_masked)
     df_list <- parLapply(cl, ndvi_masked, raster_to_df)
-    print(df_list)
+    #print(df_list)
     
     df_filter <- df_list
     for (i in length(df_list):1)
@@ -161,6 +163,7 @@ server <- function(input, output, session) {
         df_filter <- df_filter[-i]
     
     rm(df_list)
+    gc()
     df <- bind_rows(df_filter)
     #print(df)
     stopCluster(cl)
