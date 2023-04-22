@@ -68,7 +68,7 @@ server <- function(input, output, session) {
     paste("The bounding box is:", paste(bbox, collapse = ", "))
   })
   
-  output$plot <- renderPlot({
+  output$plot <- renderPlot({  
     star_time <- Sys.time()
     
     # Load ndvi data
@@ -96,8 +96,8 @@ server <- function(input, output, session) {
     }
     
     crop_to_sf <- function(tif_cm){
-      temp_cm <- aggregate(raster(tif_cm), 3000) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
-      cropland <- temp_cm > 0.2
+      temp_cm <- aggregate(raster(tif_cm), 1000) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
+      cropland <- temp_cm >0.2
       cropland[cropland==FALSE] <- NA
       crop_sp <- rasterToPolygons(cropland,dissolve = TRUE)
       crop_sf <- st_as_sf(crop_sp)
@@ -110,7 +110,7 @@ server <- function(input, output, session) {
     
     ## mask
     filter <- function(tif_ndvi){try({
-      temp_ndvi <- aggregate(raster(tif_ndvi), 3000) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
+      temp_ndvi <- aggregate(raster(tif_ndvi), 300) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
 
       #cropland <- crop(crop_sp, temp_ndvi)
       
@@ -136,7 +136,7 @@ server <- function(input, output, session) {
       temp})
     }
     
-    cl <- makeCluster(getOption("cl.cores", 12))
+    cl <- makeCluster(getOption("cl.cores", 13))
     clusterEvalQ(cl, expr = library(rstac))
     clusterEvalQ(cl, expr = library(raster))
     clusterEvalQ(cl, expr = library(stringr))
@@ -151,14 +151,16 @@ server <- function(input, output, session) {
     
     crop_sf <- parLapply(cl,tif_cm,crop_to_sf)
     crop_sf <- do.call(rbind, crop_sf)
-    plot(crop_sf)
+    print(crop_sf)
     rm(tif_cm)
     gc()
     
     #plot(crop_sp)
+    assign("crop_sf", crop_sf, envir = globalenv())
+    clusterExport(cl, "crop_sf")
     ndvi_masked <- parLapply(cl,tif_ndvi,filter)
-    rm(crop_sf)
-    gc()
+    #rm(crop_sf)
+    #gc()
     #print(ndvi_masked)
     df_list <- parLapply(cl, ndvi_masked, raster_to_df)
     #print(df_list)
@@ -171,21 +173,20 @@ server <- function(input, output, session) {
     rm(df_list)
     gc()
     df <- bind_rows(df_filter)
+    #print(length(df))
     
-    n_row <- nrow(df) %/% 4
-    sample_rows <- sample(seq_len(nrow(df)), size = n_row)  # 随机抽取行索引
-    df <- df[sample_rows, ]  # 提取抽取的行
+    ## Random sampling
+    
+    # n_row <- nrow(df) %/% 2
+    # sample_rows <- sample(seq_len(nrow(df)), size = n_row)  
+    # df <- df[sample_rows, ]  
     
     #print(df)
     
     stopCluster(cl)
     
-    end_time <- Sys.time()
     
-    run_time <- end_time - star_time
-    print(run_time)
-    
-    f <- ndvi ~ 
+    f <- ndvi ~
       s(year, bs = "cr", k = 4) +
       s(month, bs = "cc", k=12) +
       s(x,y, bs = "gp", k = 50) +
@@ -194,6 +195,13 @@ server <- function(input, output, session) {
          k  = c(50, 4), m=list(2,NA))
     
     gam_ex <- bam(f, data = df, discrete = TRUE, nthreads = 12, rho=0.8)
+    
+    end_time <- Sys.time()
+    
+    run_time <- end_time - star_time
+    
+    print(run_time)
+    
     
     plot(gam_ex)
     summary(gam_ex)
