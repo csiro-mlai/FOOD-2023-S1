@@ -13,6 +13,12 @@ library(parallel)
 library(dplyr)
 library(rnaturalearth)
 library(rnaturalearthdata)
+library(ggplot2)
+library(visreg)
+library(gridExtra)
+library(grid)
+
+
 
 # get sp data from file
 pgsp = pgsp = ne_countries(continent="africa")
@@ -38,13 +44,20 @@ ui <- fluidPage(
                    symbol further down the page shows that something is happening!"),
                        br(),
                        shinycssloaders::withSpinner(
-                         plotOutput("plot", height=1400, width = 800))
+                         plotOutput("plot_1",height=1400, width = 800)
+                       ),
+                       shinycssloaders::withSpinner(
+                         plotOutput("plot_2",height=800, width = 800)
+                       ),
+                       shinycssloaders::withSpinner(
+                         plotOutput("plot_3",height=1000, width = 1000)
+                       )
               )
   )
 )
 
 server <- function(input, output, session) {
-  # create a reactive variable for rgn
+  # create a reactive variable
   rgn <- reactiveValues()
   
   output$map <- renderLeaflet({
@@ -68,7 +81,7 @@ server <- function(input, output, session) {
     paste("The bounding box is:", paste(bbox, collapse = ", "))
   })
   
-  output$plot <- renderPlot({  
+  output$plot_1 <- renderPlot({  
     star_time <- Sys.time()
     
     # Load ndvi data
@@ -203,9 +216,44 @@ server <- function(input, output, session) {
     print(run_time)
     
     
-    plot(gam_ex)
-    summary(gam_ex)
+    plot1 <- visreg(gam_ex, "year", gg=TRUE) + theme(axis.text = element_text(size = 16)) + ggtitle("Yearly Changes")
+    plot2 <- visreg(gam_ex, "month", gg=TRUE) + theme(axis.text = element_text(size = 16)) + ggtitle("Monthly Changes")
+    plot3 <- visreg2d(gam_ex, "x", "y", plot.type="gg") + theme(axis.text = element_text(size = 16)) + ggtitle("Spatial average")
+    assign("plot3", plot3, envir = globalenv())
+    
+    
+    years <- unique(df$year)
+    
+    # Create a list to store each plot
+    plot_list <- list()
+    
+    # Loop through each year and create a separate plot
+    for (i in seq_along(years)) {
+      
+      # Subset the data for the current year
+      df_year <- df[df$year == years[i], ]
+      
+      # Plot the visreg2d for the current year and add it to the plot list
+      plot_list[[i]] <- visreg2d(gam_ex, "x", "y",
+                                 cond = list(year = years[i]),
+                                 main = paste0("Year: ", years[i]),plot.type="gg",heights = c(5, 5, 10, 10)) + theme(axis.text = element_text(size = 16)) + ggtitle(years[i])
+    }
+    
+    
+    plot4 <- grid.arrange(grobs = plot_list, ncol = 2)
+    assign("plot4", plot4, envir = globalenv())
+    
+    grid.arrange(plot1,plot2)
   })
+  
+  output$plot_2 <- renderPlot({
+    grid.draw(plot3)
+  })
+  
+  output$plot_3 <- renderPlot({
+    grid.draw(plot4)
+  })
+
 }
 
 shinyApp(ui, server)
