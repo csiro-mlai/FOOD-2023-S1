@@ -58,6 +58,7 @@ ui <- fluidPage(
   )
 )
 
+
 server <- function(input, output, session) {
   # create a reactive variable
   rgn <- reactiveValues()
