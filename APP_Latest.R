@@ -17,6 +17,28 @@ library(ggplot2)
 library(visreg)
 library(gridExtra)
 library(grid)
+library(rgee)
+
+source("C:\\Users\\Boris\\Documents\\comp8715\\food\\utils.R")
+
+
+# 1. Set rgee ----------------------------------------------------------
+if (!reticulate::virtualenv_exists("rgee_py")) {
+  set_rgee_dependencies()
+}
+
+
+# 2. Run again ee_Initialize, after a long period of inactivity. ----------
+tryCatch(
+  expr = ee$Image(0),
+  error = function(e) {ee_Initialize()}
+)
+
+np = import("numpy") 
+ee = import('ee')
+#py_install('wxee')
+wxee = import('wxee')
+#options(shiny.trace = TRUE)
 
 
 
@@ -37,6 +59,9 @@ ui <- fluidPage(
                        ),
                        textOutput("boundary"),
               ),
+              tabPanel(("Crop Mask"),
+                      br(),
+                      leafletOutput("Cmask", height=900)),
               tabPanel("Dashboard",
                        br(),
                        span(style = "font-weight: 100; font-size: 16px; width: 100%;
@@ -79,6 +104,29 @@ server <- function(input, output, session) {
     bbox <- rgn$bbox
     # return a string with the bounding box coordinates
     paste("The bounding box is:", paste(bbox, collapse = ", "))
+  })
+  
+  output$Cmask <- renderLeaflet({
+    geom = ee$Geometry$Rectangle(rgn$bbox)
+    crops = ee$Image('USGS/GFSAD1000_V1')
+    crops = crops$clip(geom)
+    cropMask = crops$select('landcover')
+    cropmask = cropMask$reduceToVectors()$filterMetadata("label","greater_than",1)
+    
+    cropMaskVis <- list(min = 0.0,
+                        max = 5.0,
+                        palette = c('black', 'orange', 'brown', '02a50f', 'green', 'yellow'))
+    Map$setCenter((rgn$bbox[1]+rgn$bbox[3])/2, (rgn$bbox[2]+rgn$bbox[4])/2, 5)
+    
+    
+    Map$addLayer(cropMask, cropMaskVis, 'Crop Mask')%>% 
+      leaflet::addLegend(values = as.numeric(seq(0,5,1)), 
+                         labels=c("Non-croplands", "Croplands: irrigation major",
+                                  "Croplands: irrigation minor", "Croplands: rainfed",
+                                  "Croplands: rainfed, minor fragments", 
+                                  "Croplands: rainfed, very minor fragments"),
+                         colors = c('black', 'orange', 'brown', '02a50f', 'green', 'yellow'),
+                         position = "topright")
   })
   
   output$plot_1 <- renderPlot({  
