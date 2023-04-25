@@ -17,11 +17,13 @@ library(ggplot2)
 library(visreg)
 library(gridExtra)
 library(grid)
+library(mapview)
+library(leafpm)
 
 
 
 # get sp data from file
-pgsp = pgsp = ne_countries(continent="africa")
+pgsp = ne_countries(continent="africa")
 
 ui <- fluidPage(
   radioButtons("operation", label = "Choose an operation:",
@@ -58,7 +60,6 @@ ui <- fluidPage(
   )
 )
 
-
 server <- function(input, output, session) {
   # create a reactive variable
   rgn <- reactiveValues()
@@ -80,7 +81,6 @@ server <- function(input, output, session) {
       observe({
         mapdata <- subset(pgsp, admin == input$countries)
         rgn$bbox <- mapdata@bbox %>% as.vector() # use $ to modify the reactive value
-        print(class(rgn$bbox))
         leafletProxy("map", session) %>% clearShapes() %>%
           addProviderTiles(input$providerName, layerId = "tiles") %>%
           flyToBounds(rgn$bbox[1], rgn$bbox[2], rgn$bbox[3], rgn$bbox[4]) %>%
