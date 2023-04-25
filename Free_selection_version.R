@@ -21,7 +21,6 @@ library(mapview)
 library(leafpm)
 
 
-
 # get sp data from file
 pgsp = ne_countries(continent="africa")
 
