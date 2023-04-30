@@ -21,6 +21,7 @@ library(mapview)
 library(leafpm)
 
 
+
 # get sp data from file
 pgsp = ne_countries(continent="africa")
 
@@ -132,8 +133,22 @@ server <- function(input, output, session) {
     }
     
     crop_to_sf <- function(tif_cm){
-      temp_cm <- aggregate(raster(tif_cm), 1000) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
-      cropland <- temp_cm >0.2
+      len_cm <- length(tif_cm)
+      if (len_cm >= 1 & len_cm <= 5) {
+        res <- 300
+      } else if (len_cm > 5 & len_cm <= 10) {
+        res <- 800
+      } else if (len_cm > 10 & len_cm <= 15) {
+        res <- 1400
+      } else if (len_cm > 15 & len_cm <= 20) {
+        res <- 1900
+      } else if (len_cm > 20 & len_cm <= 25) {
+        res <- 2500
+      } else {
+        res <- 3000
+      }
+      temp_cm <- aggregate(raster(tif_cm), res) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
+      cropland <- temp_cm > 0.2
       cropland[cropland==FALSE] <- NA
       crop_sp <- rasterToPolygons(cropland,dissolve = TRUE)
       crop_sf <- st_as_sf(crop_sp)
@@ -146,7 +161,21 @@ server <- function(input, output, session) {
     
     ## mask
     filter <- function(tif_ndvi){try({
-      temp_ndvi <- aggregate(raster(tif_ndvi), 300) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
+      len_ndvi <- length(tif_ndvi)
+      if (len_ndvi >= 1 * 48 & len_ndvi <= 5 * 48) {
+        res <- 300
+      } else if (len_ndvi > 5 * 48 & len_ndvi <= 10 * 48) {
+        res <- 800
+      } else if (len_ndvi > 10 * 48 & len_ndvi <= 15 * 48) {
+        res <- 1400
+      } else if (len_ndvi > 15 * 48 & len_ndvi <= 20 * 48) {
+        res <- 1900
+      } else if (len_ndvi > 20 * 48 & len_ndvi <= 25 * 48) {
+        res <- 2500
+      } else {
+        res <- 3000
+      }
+      temp_ndvi <- aggregate(raster(tif_ndvi), res) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
       
       #cropland <- crop(crop_sp, temp_ndvi)
       
@@ -217,7 +246,7 @@ server <- function(input, output, session) {
     # sample_rows <- sample(seq_len(nrow(df)), size = n_row)  
     # df <- df[sample_rows, ]  
     
-    #print(df)
+    print(df)
     
     stopCluster(cl)
     
