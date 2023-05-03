@@ -101,7 +101,8 @@ ui <- fluidPage(
                                    tags$p("1. Select mode（Free or Whole）"),
                                    tags$p("2. Crop the region of interest or select the country name"),
                                    tags$p("3. Click on the Dashboard"),
-                                   tags$p("4. Waiting for results to be generated")
+                                   tags$p("4. Waiting for results to be generated"),
+                                   tags$p("Please do not choose an area that is too small and not covered with vegetation. Choose an agricultural area of moderate size if possible")
                                  )
                           ),
                           column(10, leafletOutput("map", height = 800))
@@ -215,13 +216,25 @@ server <- function(input, output, session) {
       cropland <- temp_cm >0.2
       cropland[cropland==FALSE] <- NA
       print(cropland)
-      crop_sp <- rasterToPolygons(cropland,dissolve = TRUE)
-      crop_sf <- st_as_sf(crop_sp)
-      rm(temp_cm)
-      rm(cropland)
-      rm(crop_sp)
-      gc()
-      crop_sf
+      
+      if (!all(is.na(cropland[]))) {
+        crop_sp <- rasterToPolygons(cropland, dissolve = TRUE)
+        crop_sf <- st_as_sf(crop_sp)
+        rm(temp_cm)
+        rm(cropland)
+        rm(crop_sp)
+        gc()
+        crop_sf
+      } else {
+        rm(temp_cm)
+        rm(cropland)
+        gc()
+        NULL
+      }
+      
+      # crop_sp <- rasterToPolygons(cropland,dissolve = TRUE)
+      # crop_sf <- st_as_sf(crop_sp)
+
     }
     
     ## mask
@@ -272,6 +285,7 @@ server <- function(input, output, session) {
     }
     print(res)
     crop_sf <- lapply(tif_cm,crop_to_sf)
+    crop_sf <- Filter(Negate(is.null), crop_sf)
     crop_sf <- do.call(rbind, crop_sf)
     assign("crop_sf", crop_sf, envir = globalenv())
     print(crop_sf)
@@ -316,9 +330,9 @@ server <- function(input, output, session) {
     
     ## Random sampling
     
-    n_row <- nrow(df) %/% 4
-    sample_rows <- sample(seq_len(nrow(df)), size = n_row)  
-    df <- df[sample_rows, ]  
+    # n_row <- nrow(df) %/% 4
+    # sample_rows <- sample(seq_len(nrow(df)), size = n_row)  
+    # df <- df[sample_rows, ]  
     
     print(df)
     
