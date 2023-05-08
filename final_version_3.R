@@ -25,6 +25,21 @@ library(shinythemes)
 pgsp = ne_countries(continent="africa")
 
 ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      .shiny-notification {
+        font-size: 24px;
+        text-align: center;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px;
+        border-radius: 5px;
+        z-index: 1051;
+      }
+    "))
+  ),
   theme = shinytheme("slate"),
   
   tagList(
@@ -134,7 +149,6 @@ ui <- fluidPage(
                             HTML("This image presents the spatial vegetation index distribution for each year. It is a composite image composed of multiple subplots, where each subplot displays the vegetation index distribution for a specific year. In this image, the horizontal axis represents longitude, and the vertical axis represents latitude.")
                         )
                ),
-               
                
     )
   )
@@ -330,9 +344,9 @@ server <- function(input, output, session) {
     
     ## Random sampling
     
-    # n_row <- nrow(df) %/% 4
-    # sample_rows <- sample(seq_len(nrow(df)), size = n_row)  
-    # df <- df[sample_rows, ]  
+    n_row <- nrow(df) %/% 4
+    sample_rows <- sample(seq_len(nrow(df)), size = n_row)
+    df <- df[sample_rows, ]
     
     print(df)
     
@@ -346,7 +360,24 @@ server <- function(input, output, session) {
       ti(x, y, year, d = c(2, 1), bs = c("gp", "cr"),
          k  = c(50, 4), m=list(2,NA))
     
-    gam_ex <- bam(f, data = df, discrete = TRUE, nthreads = 12, rho=0.8)
+    # gam_ex <- bam(f, data = df, discrete = TRUE, nthreads = 12, rho=0.8)
+    
+    fit_gam <- function(f, data) {
+      tryCatch(
+        {
+          gam_ex <- bam(f, data = df, discrete = TRUE, nthreads = 12, rho = 0.8)
+          return(gam_ex)
+        },
+        error = function(e) {
+          showNotification("Error: Insufficient amount of data to fit the model. Please select a larger area, thanks!", 
+                           duration = NULL, 
+                           closeButton = TRUE,
+                           type = "error")
+          return(NULL)
+        }
+      )
+    }
+    gam_ex <- fit_gam(f, df)
     
     end_time <- Sys.time()
     
