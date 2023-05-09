@@ -230,7 +230,7 @@ server <- function(input, output, session) {
       assign("temp_cm", temp_cm, envir = globalenv())
       cropland <- temp_cm > 0.2
       cropland[cropland==FALSE] <- NA
-      #print(cropland)
+      print(cropland)
       
       if (!all(is.na(cropland[]))) {
         crop_sp <- rasterToPolygons(cropland, dissolve = TRUE)
