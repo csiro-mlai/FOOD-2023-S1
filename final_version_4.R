@@ -227,9 +227,10 @@ server <- function(input, output, session) {
     
     crop_to_sf <- function(tif_cm){
       temp_cm <- aggregate(raster(tif_cm), res) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
-      cropland <- temp_cm >0.2
+      assign("temp_cm", temp_cm, envir = globalenv())
+      cropland <- temp_cm > 0.2
       cropland[cropland==FALSE] <- NA
-      print(cropland)
+      #print(cropland)
       
       if (!all(is.na(cropland[]))) {
         crop_sp <- rasterToPolygons(cropland, dissolve = TRUE)
@@ -238,16 +239,25 @@ server <- function(input, output, session) {
         rm(cropland)
         rm(crop_sp)
         gc()
-        crop_sf
+        print(crop_sf)
+        #print(st_crs(crop_sf))
+        # Transform CRS if necessary
+        if (!is.na(st_crs(crop_sf))) {
+          print("return")
+          return(crop_sf)
+        } else {
+          print("delete")
+          rm(crop_sf)
+          gc()
+          NULL
+        }
+        
       } else {
         rm(temp_cm)
         rm(cropland)
         gc()
         NULL
       }
-      
-      # crop_sp <- rasterToPolygons(cropland,dissolve = TRUE)
-      # crop_sf <- st_as_sf(crop_sp)
 
     }
     
@@ -256,6 +266,9 @@ server <- function(input, output, session) {
       temp_ndvi <- aggregate(raster(tif_ndvi), res) %>% projectRaster(crs=crs("+proj=longlat +datum=WGS84 +no_defs"))
       
       #cropland <- crop(crop_sp, temp_ndvi)
+      # crs1 <- st_crs(temp_ndvi)
+      # crs2 <- st_crs(crop_sf)
+      # temp_ndvi <- st_transform(temp_ndvi, crs2)
       
       ndvi_masked <- mask(temp_ndvi, crop_sf)
       names(ndvi_masked) <- names(temp_ndvi)
@@ -303,7 +316,7 @@ server <- function(input, output, session) {
     crop_sf <- do.call(rbind, crop_sf)
     assign("crop_sf", crop_sf, envir = globalenv())
     print(crop_sf)
-    plot(crop_sf)
+    #plot(crop_sf)
     
     cl <- makeCluster(getOption("cl.cores", 13))
     clusterEvalQ(cl, expr = library(rstac))
@@ -317,20 +330,11 @@ server <- function(input, output, session) {
     bbox <- list(rgn$bbox)
     print(bbox)
     tif_ndvi <- parLapply(cl,bbox,list_ndvi)[[1]]
-
-    #print(crop_sf)
-    #rm(tif_cm)
     gc()
     
-    #plot(crop_sp)
-    # assign("crop_sf", crop_sf, envir = globalenv())
-
     ndvi_masked <- parLapply(cl,tif_ndvi,filter)
     #rm(crop_sf)
-    #gc()
-    #print(ndvi_masked)
     df_list <- parLapply(cl, ndvi_masked, raster_to_df)
-    #print(df_list)
     
     df_filter <- df_list
     for (i in length(df_list):1)
